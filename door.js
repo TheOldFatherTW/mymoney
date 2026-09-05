@@ -25,6 +25,7 @@
   const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z"/></svg>';
   const HEART_RAIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
   const LIST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M6 12h12M6 17h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  const COIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.8v8.4M10 9.4c.6-.7 1.4-1 2-1 1.2 0 2.1.7 2.1 1.8S13.2 12 12 12h-.8C10 12 9.1 12.7 9.1 13.8S10 15.6 12 15.6c.7 0 1.5-.3 2.1-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
   let key = "";
   let busy = false;
   let settingsWrap = null;
@@ -40,6 +41,7 @@
   let selected = new Set();
   let selectMode = false;
   let withdrawTimer = 0;
+  let lastFx = null;
 
   function setBoot(on, text) {
     if (!hall) return;
@@ -205,6 +207,7 @@
     }
     menu.appendChild(gearRow(CAMERA, "更換頭像", "cover", function () { if (coverInput) coverInput.click(); }));
     menu.appendChild(gearRow(SCENE, "更換背景", "backdrop", function () { if (backdropInput) backdropInput.click(); }));
+    menu.appendChild(gearRow(COIN, "顯示幣別", "ccy", function () { openCcy(); }));
     menu.appendChild(gearRow(LIST, "工作佇列", "queue", function () { openQueue(); }));
     toggle.addEventListener("click", function (ev) {
       ev.preventDefault();
@@ -477,6 +480,85 @@
     });
   }
 
+  function readCcy() {
+    try {
+      const v = localStorage.getItem("mymoney.ccy") || "";
+      if (v === "USD" || v === "TWD") return v;
+    } catch (e) {}
+    return "TWD";
+  }
+
+  function writeCcy(ccy) {
+    try { localStorage.setItem("mymoney.ccy", ccy); } catch (e) {}
+  }
+
+  function withCcy(path) {
+    return path + (path.indexOf("?") >= 0 ? "&" : "?") + "ccy=" + encodeURIComponent(readCcy());
+  }
+
+  function rememberFx(pack) {
+    if (pack && pack.fx) lastFx = pack.fx;
+  }
+
+  function fxNote(fx) {
+    if (!fx || !fx.ok || !fx.usdTwd) return "匯率暫時無法取得，先顯示原本幣別。";
+    const n = Math.round(Number(fx.usdTwd) * 100) / 100;
+    let when = "";
+    if (fx.asOf) {
+      const d = new Date(fx.asOf);
+      if (!Number.isNaN(d.getTime())) {
+        when = " · " + d.toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      }
+    }
+    return "1 美金 = NT$" + n + when;
+  }
+
+  function addCcySwitch(host, label, value) {
+    const lab = document.createElement("label");
+    lab.className = "ask-skip";
+    const name = document.createElement("span");
+    name.textContent = label;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.setAttribute("role", "switch");
+    input.checked = readCcy() === value;
+    const sw = document.createElement("span");
+    sw.className = "ask-sw";
+    lab.appendChild(name);
+    lab.appendChild(input);
+    lab.appendChild(sw);
+    input.addEventListener("change", function () {
+      if (!input.checked) {
+        input.checked = true;
+        return;
+      }
+      pickCcy(value);
+    });
+    host.appendChild(lab);
+  }
+
+  function paintCcyCard() {
+    const nodes = [line("依當前匯率換算全部金額。")];
+    const box = document.createElement("div");
+    addCcySwitch(box, "美金", "USD");
+    addCcySwitch(box, "台幣", "TWD");
+    nodes.push(box);
+    nodes.push(line(fxNote(lastFx)));
+    fillAct("顯示幣別", nodes);
+  }
+
+  function openCcy() {
+    paintCcyCard();
+  }
+
+  async function pickCcy(ccy) {
+    writeCcy(ccy);
+    paintCcyCard();
+    if (openAccount) await openContent(openAccount);
+    else await loadShelf();
+    paintCcyCard();
+  }
+
   function fillAct(title, nodes) {
     const mask = document.getElementById("actMask");
     const head = document.getElementById("actTitle");
@@ -662,8 +744,9 @@
     setCabRun(true);
     if (contentPage) contentPage.hidden = false;
     try {
-      const x = await window.FamiGate.api("/api/account?id=" + encodeURIComponent(id), key, { timeout: 45000 });
+      const x = await window.FamiGate.api(withCcy("/api/account?id=" + encodeURIComponent(id)), key, { timeout: 45000 });
       if (!x || !x.res || !x.res.ok || !x.j) return;
+      rememberFx(x.j);
       const ov = x.j.overview || {};
       const cp = x.j.compound || {};
       applyLabels(x.j.labels || {});
@@ -702,8 +785,9 @@
     setJobRun(entry, true);
     setCabRun(true);
     try {
-      const x = await window.FamiGate.api("/api/shelf?tab=stock", key, { timeout: 45000 });
+      const x = await window.FamiGate.api(withCcy("/api/shelf?tab=stock"), key, { timeout: 45000 });
       const pack = (x && x.j) || {};
+      rememberFx(pack);
       const nodes = [];
       if (pack.summary) {
         nodes.push(line(pack.summary.headline || "帳戶"));
@@ -721,8 +805,9 @@
 
   async function loadShelf() {
     if (!feed || openAccount) return;
-    const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 45000 });
+    const x = await window.FamiGate.api(withCcy("/api/shelf?tab=" + encodeURIComponent(hostTab)), key, { timeout: 45000 });
     if (!x || !x.res || !x.res.ok || !x.j) return;
+    rememberFx(x.j);
     catalog = {};
     feed.className = "feed news-list";
     feed.innerHTML = "";
