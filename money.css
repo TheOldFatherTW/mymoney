@@ -1,0 +1,99 @@
+/* MyMoney 內容頁新物件。不改返回／格子／齒輪原件幾何。 */
+.content-page {
+  width: min(720px, calc(100% - 32px));
+  margin: 8px auto 48px;
+  padding-bottom: 24px;
+}
+.hall.is-content .feed:not(.is-holds) { display: none; }
+.hall:not(.is-content) .content-page { display: none !important; }
+.money-kicker {
+  margin: 28px 0 8px;
+  color: var(--mute);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.money-hero {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(36px, 10vw, 52px);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.money-hero.is-soft { color: var(--rose); }
+.money-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 18px;
+}
+.money-stats div {
+  padding: 12px 10px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.money-stats span {
+  display: block;
+  color: var(--mute);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.money-stats strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.money-stats strong.is-up { color: #1a7f37; }
+.money-stats strong.is-down { color: #c13584; }
+.money-note {
+  margin: 8px 0 0;
+  color: var(--mute);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.feed.is-holds {
+  width: 100%;
+  margin-top: 4px;
+}
+.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+button.news-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px 14px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+button.news-row:active { background: #f6f6f6; }
+.news-row strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.news-row span {
+  display: block;
+  margin-top: 6px;
+  color: var(--mute);
+  font-size: 12px;
+}
+.news-empty {
+  color: var(--mute);
+  font-size: 14px;
+}
+@media (max-width: 520px) {
+  .money-stats { grid-template-columns: 1fr; }
+}

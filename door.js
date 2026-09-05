@@ -11,7 +11,10 @@
   const safariNote = document.getElementById("invite-safari");
   const homeInstall = document.getElementById("home-install");
   const feed = document.getElementById("feed");
+  const holdFeed = document.getElementById("holdFeed");
+  const contentPage = document.getElementById("content-page");
   const tagBoard = document.getElementById("tag-board");
+  const shelfBack = document.getElementById("shelf-back");
   const bookCoverInput = document.getElementById("book-cover-input");
   const cabHud = document.getElementById("cab-hud");
   const faceImg = document.getElementById("face-img");
@@ -26,13 +29,13 @@
   const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z"/></svg>';
   const HEART_RAIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
   const LIST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M6 12h12M6 17h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
-  const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   let key = "";
   let busy = false;
   let settingsWrap = null;
   let settingsCatch = null;
   let catalog = {};
-  let hostTab = "hold";
+  let hostTab = "stock";
+  let openAccount = "";
   let ready = false;
   let booting = false;
   let bootTimer = 0;
@@ -40,8 +43,6 @@
   let holdFired = false;
   let selected = new Set();
   let selectMode = false;
-  let askKind = "";
-  let lastShelf = null;
 
   function setBoot(on, text) {
     if (!hall) return;
@@ -60,9 +61,10 @@
     const hallBox = hall.getBoundingClientRect();
     const tags = document.getElementById("tag-board");
     const startBox = tags && !tags.hidden ? tags.getBoundingClientRect() : (feed ? feed.getBoundingClientRect() : null);
-    const endBox = feed ? feed.getBoundingClientRect() : startBox;
+    const endBox = (openAccount ? contentPage : feed);
+    const box = endBox && !endBox.hidden ? endBox.getBoundingClientRect() : startBox;
     const start = startBox ? Math.max(0, startBox.top - hallBox.top) : 180;
-    const end = endBox ? Math.max(start + 24, endBox.top - hallBox.top) : start + 80;
+    const end = box ? Math.max(start + 24, box.top - hallBox.top) : start + 80;
     const fade = "linear-gradient(to bottom, #000 0, #000 " + Math.round(start) + "px, transparent " + Math.round(end) + "px)";
     stageBg.style.height = Math.round(end) + "px";
     stageBg.style.webkitMaskImage = fade;
@@ -309,7 +311,7 @@
   }
 
   function paintPicks() {
-    document.querySelectorAll("#feed .tile").forEach(function (el) {
+    document.querySelectorAll(".feed .tile").forEach(function (el) {
       el.classList.toggle("is-pick", selected.has(el.dataset.id));
     });
     showRail(selectMode && selected.size > 0);
@@ -339,7 +341,7 @@
     const ids = Array.from(selected);
     for (const id of ids) {
       const item = catalog[id];
-      if (!item || item.kind === "plus") continue;
+      if (!item) continue;
       await window.FamiGate.api("/api/fav", key, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -348,7 +350,8 @@
       });
     }
     clearSelect();
-    loadShelf();
+    if (openAccount) openContent(openAccount);
+    else loadShelf();
   }
 
   function tileEl(item) {
@@ -420,26 +423,6 @@
     return btn;
   }
 
-  function paintPlus() {
-    if (!feed || hostTab !== "sim") return;
-    const old = feed.querySelector(".tile-add");
-    if (old) old.remove();
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "tile tile-add";
-    btn.dataset.id = "__plus__";
-    btn.setAttribute("aria-label", "佔位框");
-    const plus = document.createElement("span");
-    plus.className = "tile-plus";
-    plus.innerHTML = PLUS;
-    btn.appendChild(plus);
-    btn.addEventListener("click", function (ev) {
-      ev.preventDefault();
-      openQueue();
-    });
-    feed.appendChild(btn);
-  }
-
   function paintModes() {
     const bar = document.getElementById("mode-bar");
     if (!bar) return;
@@ -448,10 +431,22 @@
     });
   }
 
+  function paintLayer() {
+    const onContent = !!openAccount;
+    if (hall) hall.classList.toggle("is-content", onContent);
+    if (feed) feed.hidden = onContent;
+    if (contentPage) contentPage.hidden = !onContent;
+    if (shelfBack) shelfBack.hidden = !onContent;
+    const bar = document.getElementById("mode-bar");
+    if (bar) bar.hidden = onContent;
+  }
+
   function pickTab(tab) {
-    hostTab = tab || "hold";
+    hostTab = tab || "stock";
+    if (tab !== "content") closeContent();
     clearSelect();
     paintModes();
+    paintLayer();
     loadShelf();
   }
 
@@ -459,9 +454,9 @@
     const bar = document.getElementById("mode-bar");
     if (!bar) return;
     bar.innerHTML = "";
-    bar.hidden = false;
+    bar.hidden = !!openAccount;
     if (tagBoard) tagBoard.hidden = false;
-    [["fav", "最愛"], ["hold", "持倉"], ["sim", "模擬"]].forEach(function (pair) {
+    [["fav", "最愛"], ["stock", "股票"]].forEach(function (pair) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "mode-btn";
@@ -508,50 +503,104 @@
     return p;
   }
 
-  function moneyForm(placeholder, submitLabel, onSubmit) {
-    const form = document.createElement("form");
-    form.className = "tag-picker-form";
-    const input = document.createElement("input");
-    input.className = "tag-search-input";
-    input.type = "number";
-    input.min = "100";
-    input.step = "100";
-    input.placeholder = placeholder;
-    input.required = true;
-    const btn = document.createElement("button");
-    btn.type = "submit";
-    btn.className = "tag-apply";
-    btn.innerHTML = '<span class="tag-apply-face">' + submitLabel + "</span>";
-    form.appendChild(input);
-    form.appendChild(btn);
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
-      if (busy) return;
-      const n = Number(input.value);
-      if (!Number.isFinite(n)) return;
-      busy = true;
-      try { await onSubmit(n); } finally { busy = false; }
-    });
-    return form;
+  function tone(el, text) {
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove("is-up", "is-down");
+    if (/^[+]/.test(text) || /盈|賺/.test(text)) el.classList.add("is-up");
+    if (/^[−-]/.test(text) || /^-\$/.test(text)) el.classList.add("is-down");
   }
 
-  function applyBtn(label, onClick) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "tag-apply";
-    btn.innerHTML = '<span class="tag-apply-face">' + label + "</span>";
-    btn.addEventListener("click", function () {
-      if (busy) return;
-      onClick();
+  function newsWhen(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function paintNews(rows) {
+    const host = document.getElementById("newsList");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!rows || !rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "news-empty";
+      empty.textContent = "現在沒抓到新消息";
+      host.appendChild(empty);
+      return;
+    }
+    rows.forEach(function (row) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "news-row";
+      const title = document.createElement("strong");
+      title.textContent = row.title || "";
+      const meta = document.createElement("span");
+      meta.textContent = [row.publisher, newsWhen(row.at)].filter(Boolean).join(" · ");
+      btn.appendChild(title);
+      btn.appendChild(meta);
+      btn.addEventListener("click", function () {
+        if (!row.link) return;
+        window.open(row.link, "_blank", "noopener");
+      });
+      host.appendChild(btn);
     });
-    return btn;
   }
 
   function openItem(item) {
+    if (item.kind === "broker") {
+      openContent(item.id);
+      return;
+    }
     const nodes = [line(item.title || item.id)];
     if (item.detail) nodes.push(line(item.detail));
     if (item.note) nodes.push(line(item.note));
-    fillAct(item.title || "持倉", nodes);
+    fillAct(item.title || "持股", nodes);
+  }
+
+  function closeContent() {
+    openAccount = "";
+    if (contentPage) contentPage.hidden = true;
+    paintLayer();
+    ensureModes();
+  }
+
+  async function openContent(id) {
+    if (busy) return;
+    busy = true;
+    openAccount = id;
+    clearSelect();
+    paintLayer();
+    ensureModes();
+    setCabRun(true);
+    if (contentPage) contentPage.hidden = false;
+    try {
+      const x = await window.FamiGate.api("/api/account?id=" + encodeURIComponent(id), key, { timeout: 25000 });
+      if (!x || !x.res || !x.res.ok || !x.j) return;
+      const ov = x.j.overview || {};
+      const cp = x.j.compound || {};
+      const total = document.getElementById("ovTotal");
+      if (total) total.textContent = ov.total || "—";
+      tone(document.getElementById("ovGain"), [ov.gain, ov.gainPercent].filter(Boolean).join("  "));
+      tone(document.getElementById("ovDay"), [ov.day, ov.dayPercent].filter(Boolean).join("  "));
+      const market = document.getElementById("ovMarket");
+      if (market) market.textContent = ov.market || "—";
+      const future = document.getElementById("cpTotal");
+      if (future) future.textContent = cp.future || "—";
+      const note = document.getElementById("cpNote");
+      if (note) note.textContent = cp.note || "";
+      if (holdFeed) {
+        holdFeed.innerHTML = "";
+        (x.j.items || []).forEach(function (item) {
+          holdFeed.appendChild(tileEl(item));
+        });
+      }
+      paintNews(x.j.news || []);
+      layoutStage();
+    } finally {
+      busy = false;
+      setCabRun(false);
+    }
   }
 
   async function openQueue() {
@@ -559,9 +608,8 @@
     setJobRun(entry, true);
     setCabRun(true);
     try {
-      const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 20000 });
+      const x = await window.FamiGate.api("/api/shelf?tab=stock", key, { timeout: 20000 });
       const pack = (x && x.j) || {};
-      lastShelf = pack;
       const nodes = [];
       if (pack.summary) {
         nodes.push(line(pack.summary.headline || "帳戶"));
@@ -569,45 +617,7 @@
         if (pack.summary.day) nodes.push(line(pack.summary.day));
         if (pack.summary.market) nodes.push(line(pack.summary.market));
       }
-      const sim = pack.sim || {};
-      nodes.push(line(sim.running ? ("模擬：" + (sim.equity || "進行中")) : "台股模擬尚未開始。非真實下單。"));
-      if (sim.decision) nodes.push(line(sim.decision));
-      if (!sim.running) {
-        nodes.push(moneyForm("本金（TWD）", "確認", async function (n) {
-          await window.FamiGate.api("/api/trading/start", key, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ capitalTwd: n }),
-            timeout: 20000,
-          });
-          closeAct();
-          pickTab("sim");
-        }));
-      } else {
-        nodes.push(moneyForm("加本金（TWD）", "確認", async function (n) {
-          await window.FamiGate.api("/api/trading/deposit", key, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ amountTwd: n }),
-            timeout: 20000,
-          });
-          openQueue();
-          loadShelf();
-        }));
-        nodes.push(applyBtn("立刻巡視", async function () {
-          busy = true;
-          setCabRun(true);
-          try {
-            await window.FamiGate.api("/api/trading/tick", key, { method: "POST", timeout: 20000 });
-            openQueue();
-            loadShelf();
-          } finally {
-            busy = false;
-            setCabRun(false);
-          }
-        }));
-        nodes.push(applyBtn("重置模擬", function () { showAsk("reset", "", "重置模擬持倉?"); }));
-      }
+      nodes.push(line("報價會自動更新。點嘉信理財進內容頁。"));
       fillAct("工作佇列", nodes);
     } finally {
       setJobRun(entry, false);
@@ -615,35 +625,15 @@
     }
   }
 
-  function closeAsk() {
-    const mask = document.getElementById("askMask");
-    if (mask) mask.hidden = true;
-    askKind = "";
-  }
-
-  function showAsk(kind, id, message, destroy) {
-    askKind = kind;
-    const mask = document.getElementById("askMask");
-    const text = document.getElementById("askText");
-    const yes = document.getElementById("askYes");
-    const ok = document.getElementById("askOk");
-    if (text) text.textContent = message;
-    if (yes) yes.hidden = !destroy;
-    if (ok) ok.hidden = !!destroy;
-    if (mask) mask.hidden = false;
-  }
-
   async function loadShelf() {
-    if (!feed) return;
+    if (!feed || openAccount) return;
     const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 20000 });
     if (!x || !x.res || !x.res.ok || !x.j) return;
-    lastShelf = x.j;
     catalog = {};
     feed.innerHTML = "";
     (x.j.items || []).forEach(function (item) {
       feed.appendChild(tileEl(item));
     });
-    paintPlus();
     paintPicks();
     layoutStage();
   }
@@ -846,29 +836,19 @@
       if (btn) btn.classList.remove("is-run");
       bookCoverInput.value = "";
       clearSelect();
-      loadShelf();
+      if (openAccount) openContent(openAccount);
+      else loadShelf();
     }
   });
 
   const actClose = document.getElementById("actClose");
   if (actClose) actClose.addEventListener("click", closeAct);
   bindMaskClose("actMask", closeAct);
-  bindMaskClose("askMask", closeAsk);
-  const askNo = document.getElementById("askNo");
-  const askYes = document.getElementById("askYes");
-  const askOk = document.getElementById("askOk");
-  if (askNo) askNo.addEventListener("click", closeAsk);
-  async function finishAsk() {
-    const kind = askKind;
-    closeAsk();
-    if (kind === "reset") {
-      await window.FamiGate.api("/api/trading/reset", key, { method: "POST", timeout: 15000 });
-      openQueue();
-      loadShelf();
-    }
-  }
-  if (askOk) askOk.addEventListener("click", finishAsk);
-  if (askYes) askYes.addEventListener("click", finishAsk);
+  if (shelfBack) shelfBack.addEventListener("click", function (ev) {
+    ev.preventDefault();
+    closeContent();
+    loadShelf();
+  });
   window.addEventListener("resize", layoutStage);
   if (feed || goBtn) boot();
 })();
