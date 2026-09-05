@@ -268,7 +268,7 @@
   }
 
   function thumbUrl(item) {
-    return window.FamiGate.origin() + "/thumb?id=" + encodeURIComponent(item.id) + "&k=" + encodeURIComponent(key) + "&r=" + (item.cover_rev || 0);
+    return window.FamiGate.origin() + "/thumb?id=" + encodeURIComponent(item.id) + "&title=" + encodeURIComponent(item.title || "") + "&k=" + encodeURIComponent(key) + "&r=" + (item.cover_rev || 0);
   }
 
   function paintRailHeart() {
