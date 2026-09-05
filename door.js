@@ -448,7 +448,7 @@
     bar.innerHTML = "";
     bar.hidden = !!openAccount;
     if (tagBoard) tagBoard.hidden = false;
-    [["fav", "最愛"], ["stock", "股票"]].forEach(function (pair) {
+    [["fav", "最愛"], ["stock", "資產"]].forEach(function (pair) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "mode-btn";
@@ -617,8 +617,24 @@
     });
   }
 
+  function applyLabels(labels) {
+    const map = {
+      ovKicker: labels && labels.kicker,
+      ovGainLabel: labels && labels.gain,
+      ovDayLabel: labels && labels.day,
+      ovMarketLabel: labels && labels.market,
+      cpKicker: labels && labels.compound,
+      holdKicker: labels && labels.holds,
+      newsKicker: labels && labels.news,
+    };
+    Object.keys(map).forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el && map[id]) el.textContent = map[id];
+    });
+  }
+
   function openItem(item) {
-    if (item.kind === "broker") {
+    if (item.kind === "broker" || item.kind === "realty") {
       openContent(item.id);
       return;
     }
@@ -646,10 +662,11 @@
     setCabRun(true);
     if (contentPage) contentPage.hidden = false;
     try {
-      const x = await window.FamiGate.api("/api/account?id=" + encodeURIComponent(id), key, { timeout: 25000 });
+      const x = await window.FamiGate.api("/api/account?id=" + encodeURIComponent(id), key, { timeout: 45000 });
       if (!x || !x.res || !x.res.ok || !x.j) return;
       const ov = x.j.overview || {};
       const cp = x.j.compound || {};
+      applyLabels(x.j.labels || {});
       const total = document.getElementById("ovTotal");
       if (total) total.textContent = ov.total || "—";
       tone(document.getElementById("ovGain"), [ov.gain, ov.gainPercent].filter(Boolean).join("  "));
@@ -660,7 +677,16 @@
       if (future) future.textContent = cp.future || "—";
       const note = document.getElementById("cpNote");
       if (note) note.textContent = cp.note || "";
-      startWithdrawClock(ov.withdrawAt);
+      const withdraw = document.getElementById("ovWithdraw");
+      if (x.j.kind === "realty") {
+        stopWithdrawClock();
+        if (withdraw) {
+          withdraw.textContent = (x.j.labels && x.j.labels.withdraw) || "實價登錄估算";
+          withdraw.classList.remove("is-done");
+        }
+      } else {
+        startWithdrawClock(ov.withdrawAt);
+      }
       paintHolds(x.j.items || []);
       paintNews(x.j.news || []);
       layoutStage();
@@ -684,7 +710,7 @@
         if (pack.summary.day) nodes.push(line(pack.summary.day));
         if (pack.summary.market) nodes.push(line(pack.summary.market));
       }
-      nodes.push(line("報價會自動更新。點嘉信理財進內容頁。"));
+      nodes.push(line("報價會自動更新。點嘉信理財或房地產進內容頁。"));
       fillAct("工作佇列", nodes);
     } finally {
       setJobRun(entry, false);
