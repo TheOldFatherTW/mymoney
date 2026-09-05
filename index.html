@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="./app.css?v=2"/>
-<link rel="stylesheet" href="./money.css?v=1"/>
+<link rel="stylesheet" href="./money.css?v=2"/>
 <script src="./config.js?v=1788587602"></script>
 <script>
 (function () {
@@ -121,8 +121,9 @@
   <div class="feed" id="feed"></div>
   <div class="content-page" id="content-page" hidden>
     <section class="money-overview" aria-labelledby="ovKicker">
-      <p class="money-kicker" id="ovKicker">現在這筆錢</p>
+      <p class="money-kicker" id="ovKicker">當前總金額</p>
       <p class="money-hero" id="ovTotal">—</p>
+      <p class="money-withdraw" id="ovWithdraw">可提領</p>
       <div class="money-stats">
         <div>
           <span>相對本金</span>
@@ -141,11 +142,11 @@
     <section class="money-compound" aria-labelledby="cpKicker">
       <p class="money-kicker" id="cpKicker">二十年後大約</p>
       <p class="money-hero is-soft" id="cpTotal">—</p>
-      <p class="money-note" id="cpNote">依年化 7% 複利估算，不是保證</p>
+      <p class="money-note" id="cpNote">年化7％複利估算</p>
     </section>
     <section class="money-holds" aria-labelledby="holdKicker">
-      <p class="money-kicker" id="holdKicker">買了什麼</p>
-      <div class="feed is-holds" id="holdFeed"></div>
+      <p class="money-kicker" id="holdKicker">持倉</p>
+      <div class="news-list" id="holdFeed"></div>
     </section>
     <section class="money-news" aria-labelledby="newsKicker">
       <p class="money-kicker" id="newsKicker">最近消息</p>
@@ -191,6 +192,6 @@
 </div>
 <script src="./mark.js?v=1"></script>
 <script src="./gate.js?v=1"></script>
-<script src="./door.js?v=4"></script>
+<script src="./door.js?v=5"></script>
 </body>
 </html>

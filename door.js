@@ -43,6 +43,7 @@
   let holdFired = false;
   let selected = new Set();
   let selectMode = false;
+  let withdrawTimer = 0;
 
   function setBoot(on, text) {
     if (!hall) return;
@@ -518,6 +519,80 @@
     return d.toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
   }
 
+  function pad2(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  function remainText(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const years = Math.floor(total / (365.25 * 24 * 3600));
+    let left = total - Math.floor(years * 365.25 * 24 * 3600);
+    const days = Math.floor(left / 86400);
+    left -= days * 86400;
+    const hours = Math.floor(left / 3600);
+    left -= hours * 3600;
+    const mins = Math.floor(left / 60);
+    const secs = left - mins * 60;
+    return years + "年 " + days + "天 " + pad2(hours) + ":" + pad2(mins) + ":" + pad2(secs);
+  }
+
+  function stopWithdrawClock() {
+    if (withdrawTimer) {
+      window.clearInterval(withdrawTimer);
+      withdrawTimer = 0;
+    }
+  }
+
+  function startWithdrawClock(iso) {
+    stopWithdrawClock();
+    const el = document.getElementById("ovWithdraw");
+    if (!el) return;
+    const end = Date.parse(iso || "");
+    function tick() {
+      if (!end || Number.isNaN(end)) {
+        el.textContent = "可提領";
+        el.classList.remove("is-done");
+        return;
+      }
+      const left = end - Date.now();
+      if (left <= 0) {
+        el.textContent = "恭喜你！計畫成功";
+        el.classList.add("is-done");
+        stopWithdrawClock();
+        return;
+      }
+      el.classList.remove("is-done");
+      el.textContent = "可提領  " + remainText(left);
+    }
+    tick();
+    withdrawTimer = window.setInterval(tick, 1000);
+  }
+
+  function paintHolds(items) {
+    if (!holdFeed) return;
+    holdFeed.innerHTML = "";
+    (items || []).forEach(function (item) {
+      catalog[item.id] = item;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "news-row";
+      const title = document.createElement("strong");
+      title.textContent = item.label || item.title || item.id;
+      const meta = document.createElement("span");
+      const bits = [];
+      if (item.label && item.title && item.title !== item.label) bits.push(item.title);
+      if (item.ep) bits.push(item.ep);
+      if (item.badge) bits.push(item.badge);
+      meta.textContent = bits.join(" · ");
+      if (item.badge && /^[+]/.test(item.badge)) meta.classList.add("is-up");
+      if (item.badge && /^[−-]/.test(item.badge)) meta.classList.add("is-down");
+      btn.appendChild(title);
+      btn.appendChild(meta);
+      btn.addEventListener("click", function () { openItem(item); });
+      holdFeed.appendChild(btn);
+    });
+  }
+
   function paintNews(rows) {
     const host = document.getElementById("newsList");
     if (!host) return;
@@ -560,6 +635,7 @@
 
   function closeContent() {
     openAccount = "";
+    stopWithdrawClock();
     if (contentPage) contentPage.hidden = true;
     paintLayer();
     ensureModes();
@@ -589,12 +665,8 @@
       if (future) future.textContent = cp.future || "—";
       const note = document.getElementById("cpNote");
       if (note) note.textContent = cp.note || "";
-      if (holdFeed) {
-        holdFeed.innerHTML = "";
-        (x.j.items || []).forEach(function (item) {
-          holdFeed.appendChild(tileEl(item));
-        });
-      }
+      startWithdrawClock(ov.withdrawAt);
+      paintHolds(x.j.items || []);
       paintNews(x.j.news || []);
       layoutStage();
     } finally {

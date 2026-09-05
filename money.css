@@ -23,6 +23,17 @@
   line-height: 1.05;
 }
 .money-hero.is-soft { color: var(--rose); }
+.money-withdraw {
+  margin: 10px 0 0;
+  color: var(--mute);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.money-withdraw.is-done {
+  color: var(--rose);
+  font-weight: 650;
+}
 .money-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -56,10 +67,6 @@
   font-size: 12px;
   line-height: 1.4;
 }
-.feed.is-holds {
-  width: 100%;
-  margin-top: 4px;
-}
 .news-list {
   display: flex;
   flex-direction: column;
@@ -89,7 +96,10 @@ button.news-row:active { background: #f6f6f6; }
   margin-top: 6px;
   color: var(--mute);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
+.news-row span.is-up { color: #1a7f37; }
+.news-row span.is-down { color: #c13584; }
 .news-empty {
   color: var(--mute);
   font-size: 14px;
