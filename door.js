@@ -595,7 +595,7 @@
     if (!rows || !rows.length) {
       const empty = document.createElement("p");
       empty.className = "news-empty";
-      empty.textContent = "現在沒抓到新消息";
+      empty.textContent = paintNews.emptyText || "現在沒抓到新消息";
       host.appendChild(empty);
       return;
     }
@@ -634,7 +634,7 @@
   }
 
   function openItem(item) {
-    if (item.kind === "broker" || item.kind === "realty") {
+    if (!openAccount && (item.kind === "broker" || item.kind === "realty" || item.kind === "property")) {
       openContent(item.id);
       return;
     }
@@ -688,6 +688,7 @@
         startWithdrawClock(ov.withdrawAt);
       }
       paintHolds(x.j.items || []);
+      paintNews.emptyText = (x.j.labels && x.j.labels.newsEmpty) || "";
       paintNews(x.j.news || []);
       layoutStage();
     } finally {
@@ -701,7 +702,7 @@
     setJobRun(entry, true);
     setCabRun(true);
     try {
-      const x = await window.FamiGate.api("/api/shelf?tab=stock", key, { timeout: 20000 });
+      const x = await window.FamiGate.api("/api/shelf?tab=stock", key, { timeout: 45000 });
       const pack = (x && x.j) || {};
       const nodes = [];
       if (pack.summary) {
@@ -710,7 +711,7 @@
         if (pack.summary.day) nodes.push(line(pack.summary.day));
         if (pack.summary.market) nodes.push(line(pack.summary.market));
       }
-      nodes.push(line("報價會自動更新。點嘉信理財或房地產進內容頁。"));
+      nodes.push(line("報價會自動更新。點嘉信理財或各筆房地產進內容頁。"));
       fillAct("工作佇列", nodes);
     } finally {
       setJobRun(entry, false);
@@ -720,7 +721,7 @@
 
   async function loadShelf() {
     if (!feed || openAccount) return;
-    const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 20000 });
+    const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 45000 });
     if (!x || !x.res || !x.res.ok || !x.j) return;
     catalog = {};
     feed.className = "feed news-list";
