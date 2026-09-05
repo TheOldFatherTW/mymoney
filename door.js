@@ -2,10 +2,6 @@
   const hall = document.getElementById("hall");
   const statusEl = document.getElementById("status");
   const invitePanel = document.getElementById("invite-panel");
-  const goBtn = document.getElementById("invite-go");
-  const nameForm = document.getElementById("invite-name-form");
-  const nameInput = document.getElementById("invite-name");
-  const nameErr = document.getElementById("invite-name-err");
   const waitEl = document.getElementById("invite-wait");
   const waitBar = document.getElementById("invite-wait-bar");
   const safariNote = document.getElementById("invite-safari");
@@ -236,22 +232,17 @@
     hall.classList.add("is-invite");
     hall.classList.remove("is-booting");
     if (invitePanel) invitePanel.hidden = false;
-    if (window.FamiGate.needsSafari()) {
-      if (safariNote) safariNote.hidden = false;
-      if (goBtn) goBtn.hidden = true;
-    }
+    if (window.FamiGate.needsSafari() && safariNote) safariNote.hidden = false;
+    if (window.MoneyGate) window.MoneyGate.open();
   }
 
   function hideInvite() {
     if (hall) hall.classList.remove("is-invite");
     if (invitePanel) invitePanel.hidden = true;
-  }
-
-  function startWait() {
-    goBtn.hidden = true;
-    nameForm.hidden = true;
-    waitEl.hidden = false;
-    if (window.MoneyMark) window.MoneyMark.mountBar(waitBar);
+    const pad = document.getElementById("gate-pad");
+    const dots = document.getElementById("gate-dots");
+    if (pad) pad.hidden = true;
+    if (dots) dots.hidden = true;
   }
 
   function renderMe(reader) {
@@ -728,8 +719,49 @@
     }, 12000);
   }
 
+  function enterHome(reader, token) {
+    key = token;
+    window.MYMONEY_VIEW_KEY = token;
+    hideInvite();
+    const blobs = document.querySelector(".blobs");
+    if (blobs) blobs.hidden = true;
+    window.FamiGate.savePersonal(token);
+    window.FamiGate.pinKey(token);
+    renderMe(reader);
+    ensureModes();
+    setBoot(false, "");
+    if (statusEl) statusEl.textContent = "";
+    pickTab(hostTab);
+    ready = true;
+    if (typeof navigator.standalone === "boolean" && !navigator.standalone) {
+      const seen = localStorage.getItem("mymoney.installed");
+      if (!seen && homeInstall) homeInstall.hidden = false;
+    }
+  }
+
+  function enterAfterGate(token) {
+    if (!document.getElementById("home-head") || !feed) {
+      location.replace("./index.html?k=" + encodeURIComponent(token) + "#k=" + encodeURIComponent(token));
+      return;
+    }
+    key = token;
+    setBoot(true, "正在連接帳戶…");
+    window.FamiGate.api("/api/door", token, { timeout: 20000 }).then(function (x) {
+      if (!x.res || !x.res.ok || !x.j || x.j.kind === "invite") {
+        if (statusEl) statusEl.textContent = "維護中,請5分鐘後再試";
+        scheduleReconnect();
+        return;
+      }
+      enterHome(x.j.reader, token);
+    }).catch(function () {
+      if (statusEl) statusEl.textContent = "維護中,請5分鐘後再試";
+      scheduleReconnect();
+    });
+  }
+
   async function boot() {
     if (booting || ready) return;
+    if (window.MYMONEY_NEED_GATE) return;
     booting = true;
     window.FamiGate.blockWebChrome();
     window.FamiGate.bindKeyboard();
@@ -745,8 +777,8 @@
       await window.FamiGate.api("/api/public", "", { timeout: 8000 }).catch(function () { return null; });
       if (!key) {
         setBoot(false);
-        if (window.MYMONEY_FORCE_INVITE || window.MYMONEY_URL_KEY) showInvite();
-        else if (statusEl) statusEl.textContent = "請用邀請連結打開";
+        showInvite();
+        if (statusEl) statusEl.textContent = "請用邀請連結打開";
         return;
       }
       const x = await window.FamiGate.api("/api/door", key, { timeout: 20000 });
@@ -761,21 +793,7 @@
         if (statusEl) statusEl.textContent = "";
         return;
       }
-      hideInvite();
-      const blobs = document.querySelector(".blobs");
-      if (blobs) blobs.hidden = true;
-      window.FamiGate.savePersonal(key);
-      window.FamiGate.pinKey(key);
-      renderMe(x.j.reader);
-      ensureModes();
-      setBoot(false, "");
-      if (statusEl) statusEl.textContent = "";
-      pickTab(hostTab);
-      ready = true;
-      if (typeof navigator.standalone === "boolean" && !navigator.standalone) {
-        const seen = localStorage.getItem("mymoney.installed");
-        if (!seen && homeInstall) homeInstall.hidden = false;
-      }
+      enterHome(x.j.reader, key);
     } catch (e) {
       if (statusEl) statusEl.textContent = "維護中,請5分鐘後再試";
       scheduleReconnect();
@@ -783,63 +801,6 @@
       booting = false;
     }
   }
-
-  if (goBtn) goBtn.addEventListener("click", function () {
-    if (busy) return;
-    if (window.FamiGate.needsSafari()) return;
-    goBtn.hidden = true;
-    if (!nameForm || !nameInput) return;
-    nameForm.hidden = false;
-    nameInput.readOnly = true;
-    nameInput.addEventListener("touchend", function once(ev) {
-      if (Math.hypot(ev.changedTouches[0].clientX - (this._x || 0), ev.changedTouches[0].clientY - (this._y || 0)) > 12) return;
-      nameInput.readOnly = false;
-      nameInput.focus();
-    });
-    nameInput.addEventListener("touchstart", function (ev) {
-      this._x = ev.touches[0].clientX;
-      this._y = ev.touches[0].clientY;
-    });
-    setTimeout(function () {
-      nameInput.readOnly = false;
-      nameInput.focus();
-    }, 50);
-  });
-
-  if (nameForm) nameForm.addEventListener("submit", async function (e) {
-    e.preventDefault();
-    if (busy) return;
-    const inviteKey = window.MYMONEY_URL_KEY || window.FamiGate.currentKey();
-    if (!inviteKey) {
-      if (nameErr) nameErr.textContent = "請用邀請連結打開";
-      return;
-    }
-    busy = true;
-    startWait();
-    const name = (nameInput.value || "").trim();
-    try {
-      const x = await window.FamiGate.api("/api/invite/name", inviteKey, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name }),
-        timeout: 20000,
-      });
-      if (!x.res.ok || !x.j || !x.j.token) {
-        nameErr.textContent = (x.j && x.j.error) || "請再試一次";
-        waitEl.hidden = true;
-        nameForm.hidden = false;
-        busy = false;
-        return;
-      }
-      window.FamiGate.savePersonal(x.j.token);
-      location.href = "./index.html?k=" + encodeURIComponent(x.j.token) + "#k=" + encodeURIComponent(x.j.token);
-    } catch (err) {
-      nameErr.textContent = "家裡還沒開";
-      waitEl.hidden = true;
-      nameForm.hidden = false;
-      busy = false;
-    }
-  });
 
   const homeInstalled = document.getElementById("home-installed");
   if (homeInstalled) homeInstalled.addEventListener("click", function () {
@@ -922,5 +883,10 @@
     loadShelf();
   });
   window.addEventListener("resize", layoutStage);
-  if (feed || goBtn) boot();
+  window.MoneyDoor = {
+    enterAfterGate: enterAfterGate,
+    refreshOrigin: refreshOrigin,
+    openGate: showInvite,
+  };
+  if (hall) boot();
 })();

@@ -21,11 +21,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="./app.css?v=2"/>
-<link rel="stylesheet" href="./money.css?v=2"/>
+<link rel="stylesheet" href="./app.css?v=3"/>
+<link rel="stylesheet" href="./money.css?v=3"/>
 <script src="./config.js?v=1788587602"></script>
 <script>
 (function () {
+  var opened = "";
+  try { opened = sessionStorage.getItem("mymoney.gateOk") || ""; } catch (e) {}
+  window.MYMONEY_NEED_GATE = opened !== "1";
+  document.documentElement.classList.add(window.MYMONEY_NEED_GATE ? "need-gate" : "gate-ok");
   var KEY_RE = /^[A-Za-z0-9_-]{8,128}$/;
   var stored = "";
   try { stored = localStorage.getItem("mymoney.viewKey") || ""; } catch (e) {}
@@ -48,7 +52,7 @@
   var token = fromUrl || (KEY_RE.test(stored) ? stored : "") || (KEY_RE.test(cookie) ? cookie : "");
   window.MYMONEY_URL_KEY = fromUrl;
   window.MYMONEY_VIEW_KEY = token;
-  if (token) {
+  if (token && !window.MYMONEY_NEED_GATE) {
     try { localStorage.setItem("mymoney.viewKey", token); } catch (e) {}
     if (typeof navigator.standalone === "boolean" && !navigator.standalone) {
       var pin = location.pathname + "?k=" + encodeURIComponent(token) + "#k=" + encodeURIComponent(token);
@@ -70,26 +74,30 @@
 </head>
 <body>
 <div class="blobs" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-<div class="hall with-feed is-booting" id="hall">
+<div class="hall with-feed is-invite" id="hall">
   <div class="profile">
     <div class="money-mark" id="money-mark"></div>
     <h1 class="brand">MyMoney</h1>
-    <p class="status" id="status">正在連接帳戶…</p>
-  </div>
-  <div class="invite-panel" id="invite-panel" hidden>
-    <p class="invite-hey">一起看退休金</p>
-    <p class="invite-safari" id="invite-safari" hidden>請用 Safari 打開</p>
-    <button type="button" class="invite-go" id="invite-go">開始</button>
-    <form id="invite-name-form" hidden>
-      <p class="err" id="invite-name-err"></p>
-      <label for="invite-name">你叫什麼</label>
-      <div class="apple-row">
-        <input id="invite-name" autocomplete="nickname" maxlength="24" required/>
-        <button type="submit" class="apple-next" aria-label="繼續">
-          <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="18"/><path d="M15.2 11.5L22.5 18l-7.3 6.5"/></svg>
-        </button>
+    <p class="status" id="status"></p>
+    <div class="invite-panel" id="invite-panel">
+      <p class="invite-hey" id="invite-hey">給老婆看的退休金</p>
+      <p class="invite-safari" id="invite-safari" hidden>請用 Safari 打開</p>
+      <div class="gate-dots" id="gate-dots" aria-hidden="true"></div>
+      <div class="gate-pad" id="gate-pad" role="group" aria-label="數字門">
+        <button type="button" class="gate-key" data-num="1">1</button>
+        <button type="button" class="gate-key" data-num="2">2</button>
+        <button type="button" class="gate-key" data-num="3">3</button>
+        <button type="button" class="gate-key" data-num="4">4</button>
+        <button type="button" class="gate-key" data-num="5">5</button>
+        <button type="button" class="gate-key" data-num="6">6</button>
+        <button type="button" class="gate-key" data-num="7">7</button>
+        <button type="button" class="gate-key" data-num="8">8</button>
+        <button type="button" class="gate-key" data-num="9">9</button>
+        <span class="gate-skip" aria-hidden="true"></span>
+        <button type="button" class="gate-key" data-num="0">0</button>
+        <button type="button" class="gate-key gate-del" data-del="1" aria-label="刪除">⌫</button>
       </div>
-    </form>
+    </div>
     <div class="invite-wait" id="invite-wait" hidden>
       <div class="thinking-five" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
       <div class="invite-wait-bar" id="invite-wait-bar"></div>
@@ -192,6 +200,7 @@
 </div>
 <script src="./mark.js?v=1"></script>
 <script src="./gate.js?v=1"></script>
-<script src="./door.js?v=5"></script>
+<script src="./hey.js?v=1"></script>
+<script src="./door.js?v=6"></script>
 </body>
 </html>
