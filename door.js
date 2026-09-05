@@ -1,0 +1,874 @@
+(function () {
+  const hall = document.getElementById("hall");
+  const statusEl = document.getElementById("status");
+  const invitePanel = document.getElementById("invite-panel");
+  const goBtn = document.getElementById("invite-go");
+  const nameForm = document.getElementById("invite-name-form");
+  const nameInput = document.getElementById("invite-name");
+  const nameErr = document.getElementById("invite-name-err");
+  const waitEl = document.getElementById("invite-wait");
+  const waitBar = document.getElementById("invite-wait-bar");
+  const safariNote = document.getElementById("invite-safari");
+  const homeInstall = document.getElementById("home-install");
+  const feed = document.getElementById("feed");
+  const tagBoard = document.getElementById("tag-board");
+  const bookCoverInput = document.getElementById("book-cover-input");
+  const cabHud = document.getElementById("cab-hud");
+  const faceImg = document.getElementById("face-img");
+  const readerName = document.getElementById("reader-name");
+  const coverInput = document.getElementById("cover-input");
+  const backdropInput = document.getElementById("backdrop-input");
+  const stageBg = document.getElementById("stage-bg");
+  const homeHead = document.getElementById("home-head");
+  const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.6 3.8l.6-1.3h3.6l.6 1.3 1.6.7 1.4-.5 2.5 2.5-.5 1.4.7 1.6 1.3.6v3.6l-1.3.6-.7 1.6.5 1.4-2.5 2.5-1.4-.5-1.6.7-.6 1.3h-3.6l-.6-1.3-1.6-.7-1.4.5-2.5-2.5.5-1.4-.7-1.6-1.3-.6v-3.6l1.3-.6.7-1.6-.5-1.4L6.6 4l1.4.5 1.6-.7z" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><circle cx="12" cy="11.9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  const CAMERA = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="8" width="17" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 8l1.4-2.4h5.2L16 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="13.6" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>';
+  const SCENE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 16.2l4.2-4.6 3 3.2 2.2-2.4 3.6 3.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="9" cy="9.2" r="1.3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z"/></svg>';
+  const HEART_RAIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20C10.5 18.4 7.3 15.8 5.4 11.9C4 9.1 5.2 6 8.4 6c1.8 0 3 1.1 3.6 2.2C12.6 7.1 13.8 6 15.6 6c3.2 0 4.4 3.1 3 5.9C16.7 15.8 13.5 18.4 12 20Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+  const LIST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M6 12h12M6 17h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  let key = "";
+  let busy = false;
+  let settingsWrap = null;
+  let settingsCatch = null;
+  let catalog = {};
+  let hostTab = "hold";
+  let ready = false;
+  let booting = false;
+  let bootTimer = 0;
+  let holdTimer = 0;
+  let holdFired = false;
+  let selected = new Set();
+  let selectMode = false;
+  let askKind = "";
+  let lastShelf = null;
+
+  function setBoot(on, text) {
+    if (!hall) return;
+    hall.classList.toggle("is-booting", !!on);
+    hall.classList.toggle("with-feed", true);
+    if (statusEl && text != null) statusEl.textContent = text;
+  }
+
+  function setCabRun(on) {
+    const cover = document.querySelector("#cab-hud .cab-cover");
+    if (cover) cover.classList.toggle("is-run", !!on);
+  }
+
+  function layoutStage() {
+    if (!stageBg || !hall || stageBg.hidden) return;
+    const hallBox = hall.getBoundingClientRect();
+    const tags = document.getElementById("tag-board");
+    const startBox = tags && !tags.hidden ? tags.getBoundingClientRect() : (feed ? feed.getBoundingClientRect() : null);
+    const endBox = feed ? feed.getBoundingClientRect() : startBox;
+    const start = startBox ? Math.max(0, startBox.top - hallBox.top) : 180;
+    const end = endBox ? Math.max(start + 24, endBox.top - hallBox.top) : start + 80;
+    const fade = "linear-gradient(to bottom, #000 0, #000 " + Math.round(start) + "px, transparent " + Math.round(end) + "px)";
+    stageBg.style.height = Math.round(end) + "px";
+    stageBg.style.webkitMaskImage = fade;
+    stageBg.style.maskImage = fade;
+  }
+
+  function paintStage(reader) {
+    if (!stageBg || !hall) return;
+    if (reader && reader.has_backdrop && reader.id) {
+      hall.classList.add("has-backdrop");
+      stageBg.style.backgroundImage = "url(" + window.FamiGate.origin() + "/backdrop?person=" + encodeURIComponent(reader.id) + "&k=" + encodeURIComponent(key) + "&r=" + (reader.backdrop_rev || 0) + ")";
+      stageBg.hidden = false;
+      if (readerName) readerName.classList.add("is-on-dark");
+      requestAnimationFrame(layoutStage);
+    } else {
+      hall.classList.remove("has-backdrop");
+      if (readerName) readerName.classList.remove("is-on-light", "is-on-dark");
+      stageBg.hidden = true;
+      stageBg.style.backgroundImage = "";
+    }
+  }
+
+  function insButton(className, svg, label) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ins-icon " + className;
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+    btn.innerHTML = '<span class="ins-ring"></span><span class="ins-face">' + svg + "</span>";
+    return btn;
+  }
+
+  function jobBadge(svg) {
+    const badge = document.createElement("span");
+    badge.className = "ins-icon job-icon";
+    badge.setAttribute("aria-hidden", "true");
+    badge.innerHTML = '<span class="ins-ring"></span><span class="ins-face">' + svg + "</span>";
+    return badge;
+  }
+
+  function setJobRun(entry, on) {
+    if (!entry) return;
+    entry.classList.toggle("is-run", !!on);
+    entry.disabled = !!on;
+  }
+
+  function showWaitCard(title) {
+    const mask = document.getElementById("waitMask");
+    const head = document.getElementById("waitTitle");
+    const pct = document.getElementById("waitPct");
+    if (head) head.textContent = title;
+    if (pct) pct.textContent = "0%";
+    if (mask) mask.hidden = false;
+  }
+
+  function hideWaitCard() {
+    const mask = document.getElementById("waitMask");
+    if (mask) mask.hidden = true;
+  }
+
+  function setWaitPct(n) {
+    const pct = document.getElementById("waitPct");
+    if (pct) pct.textContent = String(n) + "%";
+  }
+
+  function postFile(url, body, onPct) {
+    return new Promise(function (resolve, reject) {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr);
+        else reject(new Error("fail"));
+      };
+      xhr.onerror = function () { reject(new Error("net")); };
+      if (xhr.upload) {
+        xhr.upload.onprogress = function (ev) {
+          if (ev.lengthComputable && ev.total && onPct) onPct(Math.round((ev.loaded / ev.total) * 100));
+        };
+      }
+      xhr.send(body);
+    });
+  }
+
+  function closeSettings() {
+    document.querySelectorAll(".settings-menu").forEach(function (menu) { menu.hidden = true; });
+    if (settingsCatch) settingsCatch.hidden = true;
+    document.querySelectorAll(".settings-toggle").forEach(function (toggle) {
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.classList.remove("is-live");
+    });
+    document.documentElement.classList.remove("settings-open");
+  }
+
+  function ensureSettingsCatch() {
+    if (settingsCatch && settingsCatch.isConnected) return settingsCatch;
+    settingsCatch = document.createElement("div");
+    settingsCatch.className = "settings-catch";
+    settingsCatch.hidden = true;
+    settingsCatch.addEventListener("click", closeSettings);
+    document.body.appendChild(settingsCatch);
+    return settingsCatch;
+  }
+
+  function placeSettingsMenu(toggle, menu) {
+    const box = toggle.getBoundingClientRect();
+    menu.style.position = "fixed";
+    menu.style.right = Math.max(12, window.innerWidth - box.right) + "px";
+    menu.style.top = Math.round(box.bottom + 8) + "px";
+  }
+
+  function ensureSettings() {
+    const host = document.querySelector("#cab-hud .cab-wrap");
+    const existing = document.getElementById("album-settings");
+    if (settingsWrap && settingsWrap.isConnected) return settingsWrap;
+    settingsWrap = existing && existing.isConnected ? existing : document.createElement("div");
+    const wrap = settingsWrap;
+    wrap.id = "album-settings";
+    wrap.className = "album-settings";
+    wrap.hidden = true;
+    wrap.innerHTML = "";
+    const toggle = insButton("settings-toggle", GEAR, "設定");
+    toggle.setAttribute("aria-expanded", "false");
+    const menu = document.createElement("div");
+    menu.className = "settings-menu";
+    menu.setAttribute("role", "menu");
+    menu.hidden = true;
+    function gearRow(svg, label, job, onClick) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "settings-entry";
+      row.dataset.job = job;
+      row.appendChild(jobBadge(svg));
+      const text = document.createElement("span");
+      text.textContent = label;
+      row.appendChild(text);
+      row.addEventListener("click", function () {
+        closeSettings();
+        onClick();
+      });
+      return row;
+    }
+    menu.appendChild(gearRow(CAMERA, "更換頭像", "cover", function () { if (coverInput) coverInput.click(); }));
+    menu.appendChild(gearRow(SCENE, "更換背景", "backdrop", function () { if (backdropInput) backdropInput.click(); }));
+    menu.appendChild(gearRow(LIST, "工作佇列", "queue", function () { openQueue(); }));
+    toggle.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const open = menu.hidden;
+      if (open) {
+        const catcher = ensureSettingsCatch();
+        catcher.hidden = false;
+        document.body.appendChild(menu);
+        menu.hidden = false;
+        document.documentElement.classList.add("settings-open");
+        requestAnimationFrame(function () { placeSettingsMenu(toggle, menu); });
+      } else closeSettings();
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.classList.toggle("is-live", open);
+    });
+    wrap.appendChild(toggle);
+    wrap.appendChild(menu);
+    if (host) host.appendChild(wrap);
+    return wrap;
+  }
+
+  function showInvite() {
+    if (!hall) return;
+    hall.classList.add("is-invite");
+    hall.classList.remove("is-booting");
+    if (invitePanel) invitePanel.hidden = false;
+    if (window.FamiGate.needsSafari()) {
+      if (safariNote) safariNote.hidden = false;
+      if (goBtn) goBtn.hidden = true;
+    }
+  }
+
+  function hideInvite() {
+    if (hall) hall.classList.remove("is-invite");
+    if (invitePanel) invitePanel.hidden = true;
+  }
+
+  function startWait() {
+    goBtn.hidden = true;
+    nameForm.hidden = true;
+    waitEl.hidden = false;
+    if (window.MoneyMark) window.MoneyMark.mountBar(waitBar);
+  }
+
+  function renderMe(reader) {
+    if (!reader || !cabHud) return;
+    if (readerName) readerName.textContent = reader.display_name || "";
+    if (faceImg) {
+      faceImg.src = reader.has_cover
+        ? window.FamiGate.origin() + "/cover?person=" + encodeURIComponent(reader.id) + "&k=" + encodeURIComponent(key) + "&r=" + (reader.cover_rev || 0)
+        : "./face-default.jpg?v=1";
+      faceImg.hidden = false;
+    }
+    cabHud.hidden = false;
+    if (homeHead) homeHead.hidden = false;
+    const settings = ensureSettings();
+    settings.hidden = false;
+    paintStage(reader);
+  }
+
+  function thumbUrl(item) {
+    return window.FamiGate.origin() + "/thumb?id=" + encodeURIComponent(item.id) + "&k=" + encodeURIComponent(key) + "&r=" + (item.cover_rev || 0);
+  }
+
+  function paintRailHeart() {
+    const rail = document.getElementById("photo-rail");
+    const heart = rail && rail.querySelector(".rail-heart");
+    if (!heart) return;
+    const ids = Array.from(selected);
+    const loved = ids.length > 0 && ids.every(function (id) {
+      const item = catalog[id];
+      return item && item.favorite;
+    });
+    heart.classList.toggle("is-on", loved);
+  }
+
+  function showRail(on) {
+    const rail = document.getElementById("photo-rail");
+    if (!rail) return;
+    rail.hidden = !on;
+    document.documentElement.classList.toggle("has-rail", !!on);
+    if (on && !rail.dataset.ready) {
+      rail.dataset.ready = "1";
+      const cover = insButton("rail-cover", CAMERA, "換封面");
+      cover.addEventListener("click", function () {
+        if (!bookCoverInput || !selected.size) return;
+        bookCoverInput.value = "";
+        bookCoverInput.click();
+      });
+      const heart = insButton("rail-heart", HEART_RAIL, "愛心");
+      heart.addEventListener("click", heartSelected);
+      rail.appendChild(cover);
+      rail.appendChild(heart);
+    }
+    if (on) paintRailHeart();
+    else {
+      const heart = rail.querySelector(".rail-heart");
+      if (heart) heart.classList.remove("is-on");
+    }
+  }
+
+  function paintPicks() {
+    document.querySelectorAll("#feed .tile").forEach(function (el) {
+      el.classList.toggle("is-pick", selected.has(el.dataset.id));
+    });
+    showRail(selectMode && selected.size > 0);
+    document.documentElement.classList.toggle("is-select", selectMode);
+  }
+
+  function enterSelect(id) {
+    selectMode = true;
+    if (id) selected.add(id);
+    paintPicks();
+  }
+
+  function togglePick(id) {
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    selectMode = selected.size > 0;
+    paintPicks();
+  }
+
+  function clearSelect() {
+    selected = new Set();
+    selectMode = false;
+    paintPicks();
+  }
+
+  async function heartSelected() {
+    const ids = Array.from(selected);
+    for (const id of ids) {
+      const item = catalog[id];
+      if (!item || item.kind === "plus") continue;
+      await window.FamiGate.api("/api/fav", key, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, on: !item.favorite }),
+        timeout: 15000,
+      });
+    }
+    clearSelect();
+    loadShelf();
+  }
+
+  function tileEl(item) {
+    catalog[item.id] = item;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tile";
+    btn.dataset.id = item.id;
+    if (item.has_cover) {
+      const img = document.createElement("img");
+      img.alt = item.title || "";
+      img.decoding = "async";
+      img.src = thumbUrl(item);
+      img.addEventListener("load", function () { img.classList.add("is-on"); });
+      img.addEventListener("error", function () { img.hidden = true; });
+      if (img.complete && img.naturalWidth) img.classList.add("is-on");
+      btn.appendChild(img);
+    }
+    const shield = document.createElement("span");
+    shield.className = "tile-shield";
+    btn.appendChild(shield);
+    if (item.favorite) {
+      const heart = document.createElement("span");
+      heart.className = "tile-heart";
+      heart.innerHTML = HEART;
+      btn.appendChild(heart);
+    }
+    if (item.ep) {
+      const ep = document.createElement("span");
+      ep.className = "tile-ep";
+      ep.textContent = item.ep;
+      btn.appendChild(ep);
+    }
+    if (item.badge) {
+      const badge = document.createElement("span");
+      badge.className = "tile-pct";
+      badge.textContent = item.badge;
+      btn.appendChild(badge);
+    }
+    btn.addEventListener("pointerdown", function (ev) {
+      if (ev.button && ev.button !== 0) return;
+      holdTimer = window.setTimeout(function () {
+        holdFired = true;
+        if (selectMode && selected.has(item.id) && selected.size === 1) {
+          clearSelect();
+          return;
+        }
+        enterSelect(item.id);
+      }, 480);
+    });
+    function cancelHold() {
+      window.clearTimeout(holdTimer);
+      holdTimer = 0;
+    }
+    btn.addEventListener("pointerup", cancelHold);
+    btn.addEventListener("pointercancel", cancelHold);
+    btn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      if (holdFired) {
+        holdFired = false;
+        return;
+      }
+      if (selectMode) {
+        togglePick(item.id);
+        return;
+      }
+      openItem(item);
+    });
+    return btn;
+  }
+
+  function paintPlus() {
+    if (!feed || hostTab !== "sim") return;
+    const old = feed.querySelector(".tile-add");
+    if (old) old.remove();
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tile tile-add";
+    btn.dataset.id = "__plus__";
+    btn.setAttribute("aria-label", "佔位框");
+    const plus = document.createElement("span");
+    plus.className = "tile-plus";
+    plus.innerHTML = PLUS;
+    btn.appendChild(plus);
+    btn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      openQueue();
+    });
+    feed.appendChild(btn);
+  }
+
+  function paintModes() {
+    const bar = document.getElementById("mode-bar");
+    if (!bar) return;
+    bar.querySelectorAll(".mode-btn").forEach(function (el) {
+      el.classList.toggle("is-on", el.dataset.mode === hostTab);
+    });
+  }
+
+  function pickTab(tab) {
+    hostTab = tab || "hold";
+    clearSelect();
+    paintModes();
+    loadShelf();
+  }
+
+  function ensureModes() {
+    const bar = document.getElementById("mode-bar");
+    if (!bar) return;
+    bar.innerHTML = "";
+    bar.hidden = false;
+    if (tagBoard) tagBoard.hidden = false;
+    [["fav", "最愛"], ["hold", "持倉"], ["sim", "模擬"]].forEach(function (pair) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mode-btn";
+      btn.dataset.mode = pair[0];
+      btn.textContent = pair[1];
+      btn.addEventListener("click", function () { pickTab(pair[0]); });
+      bar.appendChild(btn);
+    });
+    paintModes();
+  }
+
+  function closeAct() {
+    const mask = document.getElementById("actMask");
+    if (mask) mask.hidden = true;
+  }
+
+  function bindMaskClose(maskId, closeFn) {
+    const mask = document.getElementById(maskId);
+    if (!mask) return;
+    if (window.FamiGate && window.FamiGate.lockSheetPage) window.FamiGate.lockSheetPage(mask);
+    let down = false;
+    mask.addEventListener("pointerdown", function (ev) { down = ev.target === mask; });
+    mask.addEventListener("pointerup", function (ev) {
+      if (down && ev.target === mask) closeFn();
+      down = false;
+    });
+  }
+
+  function fillAct(title, nodes) {
+    const mask = document.getElementById("actMask");
+    const head = document.getElementById("actTitle");
+    const body = document.getElementById("actBody");
+    if (head) head.textContent = title;
+    if (body) {
+      body.innerHTML = "";
+      nodes.forEach(function (n) { body.appendChild(n); });
+    }
+    if (mask) mask.hidden = false;
+  }
+
+  function line(text) {
+    const p = document.createElement("p");
+    p.textContent = text;
+    return p;
+  }
+
+  function moneyForm(placeholder, submitLabel, onSubmit) {
+    const form = document.createElement("form");
+    form.className = "tag-picker-form";
+    const input = document.createElement("input");
+    input.className = "tag-search-input";
+    input.type = "number";
+    input.min = "100";
+    input.step = "100";
+    input.placeholder = placeholder;
+    input.required = true;
+    const btn = document.createElement("button");
+    btn.type = "submit";
+    btn.className = "tag-apply";
+    btn.innerHTML = '<span class="tag-apply-face">' + submitLabel + "</span>";
+    form.appendChild(input);
+    form.appendChild(btn);
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      if (busy) return;
+      const n = Number(input.value);
+      if (!Number.isFinite(n)) return;
+      busy = true;
+      try { await onSubmit(n); } finally { busy = false; }
+    });
+    return form;
+  }
+
+  function applyBtn(label, onClick) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tag-apply";
+    btn.innerHTML = '<span class="tag-apply-face">' + label + "</span>";
+    btn.addEventListener("click", function () {
+      if (busy) return;
+      onClick();
+    });
+    return btn;
+  }
+
+  function openItem(item) {
+    const nodes = [line(item.title || item.id)];
+    if (item.detail) nodes.push(line(item.detail));
+    if (item.note) nodes.push(line(item.note));
+    fillAct(item.title || "持倉", nodes);
+  }
+
+  async function openQueue() {
+    const entry = document.querySelector('.settings-entry[data-job="queue"]');
+    setJobRun(entry, true);
+    setCabRun(true);
+    try {
+      const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 20000 });
+      const pack = (x && x.j) || {};
+      lastShelf = pack;
+      const nodes = [];
+      if (pack.summary) {
+        nodes.push(line(pack.summary.headline || "帳戶"));
+        if (pack.summary.gain) nodes.push(line(pack.summary.gain));
+        if (pack.summary.day) nodes.push(line(pack.summary.day));
+        if (pack.summary.market) nodes.push(line(pack.summary.market));
+      }
+      const sim = pack.sim || {};
+      nodes.push(line(sim.running ? ("模擬：" + (sim.equity || "進行中")) : "台股模擬尚未開始。非真實下單。"));
+      if (sim.decision) nodes.push(line(sim.decision));
+      if (!sim.running) {
+        nodes.push(moneyForm("本金（TWD）", "確認", async function (n) {
+          await window.FamiGate.api("/api/trading/start", key, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ capitalTwd: n }),
+            timeout: 20000,
+          });
+          closeAct();
+          pickTab("sim");
+        }));
+      } else {
+        nodes.push(moneyForm("加本金（TWD）", "確認", async function (n) {
+          await window.FamiGate.api("/api/trading/deposit", key, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ amountTwd: n }),
+            timeout: 20000,
+          });
+          openQueue();
+          loadShelf();
+        }));
+        nodes.push(applyBtn("立刻巡視", async function () {
+          busy = true;
+          setCabRun(true);
+          try {
+            await window.FamiGate.api("/api/trading/tick", key, { method: "POST", timeout: 20000 });
+            openQueue();
+            loadShelf();
+          } finally {
+            busy = false;
+            setCabRun(false);
+          }
+        }));
+        nodes.push(applyBtn("重置模擬", function () { showAsk("reset", "", "重置模擬持倉?"); }));
+      }
+      fillAct("工作佇列", nodes);
+    } finally {
+      setJobRun(entry, false);
+      setCabRun(false);
+    }
+  }
+
+  function closeAsk() {
+    const mask = document.getElementById("askMask");
+    if (mask) mask.hidden = true;
+    askKind = "";
+  }
+
+  function showAsk(kind, id, message, destroy) {
+    askKind = kind;
+    const mask = document.getElementById("askMask");
+    const text = document.getElementById("askText");
+    const yes = document.getElementById("askYes");
+    const ok = document.getElementById("askOk");
+    if (text) text.textContent = message;
+    if (yes) yes.hidden = !destroy;
+    if (ok) ok.hidden = !!destroy;
+    if (mask) mask.hidden = false;
+  }
+
+  async function loadShelf() {
+    if (!feed) return;
+    const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 20000 });
+    if (!x || !x.res || !x.res.ok || !x.j) return;
+    lastShelf = x.j;
+    catalog = {};
+    feed.innerHTML = "";
+    (x.j.items || []).forEach(function (item) {
+      feed.appendChild(tileEl(item));
+    });
+    paintPlus();
+    paintPicks();
+    layoutStage();
+  }
+
+  function refreshOrigin() {
+    return fetch("./config.js?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.text(); })
+      .then(function (text) {
+        const m = /VAULT_ORIGIN\s*=\s*"(https?:\/\/[^"]+)"/.exec(text);
+        if (m) window.VAULT_ORIGIN = m[1];
+      })
+      .catch(function () {});
+  }
+
+  function scheduleReconnect() {
+    if (ready || bootTimer) return;
+    bootTimer = window.setTimeout(function () {
+      bootTimer = 0;
+      refreshOrigin().then(boot);
+    }, 12000);
+  }
+
+  async function boot() {
+    if (booting || ready) return;
+    booting = true;
+    window.FamiGate.blockWebChrome();
+    window.FamiGate.bindKeyboard();
+    setBoot(true, "正在連接帳戶…");
+    key = window.MYMONEY_VIEW_KEY || window.FamiGate.currentKey();
+    if (window.MYMONEY_FORCE_INVITE) key = window.MYMONEY_URL_KEY || "";
+    try {
+      if (!window.FamiGate.origin()) {
+        if (statusEl) statusEl.textContent = "維護中,請5分鐘後再試";
+        scheduleReconnect();
+        return;
+      }
+      await window.FamiGate.api("/api/public", "", { timeout: 8000 }).catch(function () { return null; });
+      if (!key) {
+        setBoot(false);
+        if (window.MYMONEY_FORCE_INVITE || window.MYMONEY_URL_KEY) showInvite();
+        else if (statusEl) statusEl.textContent = "請用邀請連結打開";
+        return;
+      }
+      const x = await window.FamiGate.api("/api/door", key, { timeout: 20000 });
+      if (!x.res || !x.res.ok || !x.j) {
+        if (statusEl) statusEl.textContent = "維護中,請5分鐘後再試";
+        scheduleReconnect();
+        return;
+      }
+      if (x.j.kind === "invite") {
+        setBoot(false);
+        showInvite();
+        if (statusEl) statusEl.textContent = "";
+        return;
+      }
+      hideInvite();
+      const blobs = document.querySelector(".blobs");
+      if (blobs) blobs.hidden = true;
+      window.FamiGate.savePersonal(key);
+      window.FamiGate.pinKey(key);
+      renderMe(x.j.reader);
+      ensureModes();
+      setBoot(false, "");
+      if (statusEl) statusEl.textContent = "";
+      pickTab(hostTab);
+      ready = true;
+      if (typeof navigator.standalone === "boolean" && !navigator.standalone) {
+        const seen = localStorage.getItem("mymoney.installed");
+        if (!seen && homeInstall) homeInstall.hidden = false;
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "維護中,請5分鐘後再試";
+      scheduleReconnect();
+    } finally {
+      booting = false;
+    }
+  }
+
+  if (goBtn) goBtn.addEventListener("click", function () {
+    if (busy) return;
+    if (window.FamiGate.needsSafari()) return;
+    goBtn.hidden = true;
+    if (!nameForm || !nameInput) return;
+    nameForm.hidden = false;
+    nameInput.readOnly = true;
+    nameInput.addEventListener("touchend", function once(ev) {
+      if (Math.hypot(ev.changedTouches[0].clientX - (this._x || 0), ev.changedTouches[0].clientY - (this._y || 0)) > 12) return;
+      nameInput.readOnly = false;
+      nameInput.focus();
+    });
+    nameInput.addEventListener("touchstart", function (ev) {
+      this._x = ev.touches[0].clientX;
+      this._y = ev.touches[0].clientY;
+    });
+    setTimeout(function () {
+      nameInput.readOnly = false;
+      nameInput.focus();
+    }, 50);
+  });
+
+  if (nameForm) nameForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (busy) return;
+    const inviteKey = window.MYMONEY_URL_KEY || window.FamiGate.currentKey();
+    if (!inviteKey) {
+      if (nameErr) nameErr.textContent = "請用邀請連結打開";
+      return;
+    }
+    busy = true;
+    startWait();
+    const name = (nameInput.value || "").trim();
+    try {
+      const x = await window.FamiGate.api("/api/invite/name", inviteKey, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name }),
+        timeout: 20000,
+      });
+      if (!x.res.ok || !x.j || !x.j.token) {
+        nameErr.textContent = (x.j && x.j.error) || "請再試一次";
+        waitEl.hidden = true;
+        nameForm.hidden = false;
+        busy = false;
+        return;
+      }
+      window.FamiGate.savePersonal(x.j.token);
+      location.href = "./index.html?k=" + encodeURIComponent(x.j.token) + "#k=" + encodeURIComponent(x.j.token);
+    } catch (err) {
+      nameErr.textContent = "家裡還沒開";
+      waitEl.hidden = true;
+      nameForm.hidden = false;
+      busy = false;
+    }
+  });
+
+  const homeInstalled = document.getElementById("home-installed");
+  if (homeInstalled) homeInstalled.addEventListener("click", function () {
+    try { localStorage.setItem("mymoney.installed", "1"); } catch (e) {}
+    if (homeInstall) homeInstall.hidden = true;
+  });
+
+  if (coverInput) coverInput.addEventListener("change", async function () {
+    const file = coverInput.files && coverInput.files[0];
+    if (!file) return;
+    const entry = document.querySelector('.settings-entry[data-job="cover"]');
+    setJobRun(entry, true);
+    setCabRun(true);
+    try {
+      const fd = new FormData();
+      fd.append("cover", file);
+      await fetch(window.FamiGate.origin() + "/api/cover?k=" + encodeURIComponent(key), { method: "POST", body: fd });
+      const door = await window.FamiGate.api("/api/door", key, { timeout: 15000 });
+      if (door.j && door.j.reader) renderMe(door.j.reader);
+    } finally {
+      setJobRun(entry, false);
+      setCabRun(false);
+      coverInput.value = "";
+    }
+  });
+
+  if (backdropInput) backdropInput.addEventListener("change", async function () {
+    const file = backdropInput.files && backdropInput.files[0];
+    if (!file) return;
+    const entry = document.querySelector('.settings-entry[data-job="backdrop"]');
+    setJobRun(entry, true);
+    showWaitCard("更換背景中");
+    try {
+      const fd = new FormData();
+      fd.append("backdrop", file);
+      await postFile(window.FamiGate.origin() + "/api/backdrop?k=" + encodeURIComponent(key), fd, setWaitPct);
+      const door = await window.FamiGate.api("/api/door", key, { timeout: 15000 });
+      if (door.j && door.j.reader) renderMe(door.j.reader);
+    } finally {
+      setJobRun(entry, false);
+      hideWaitCard();
+      backdropInput.value = "";
+    }
+  });
+
+  if (bookCoverInput) bookCoverInput.addEventListener("change", async function () {
+    const file = bookCoverInput.files && bookCoverInput.files[0];
+    if (!file || !selected.size) return;
+    const btn = document.querySelector(".rail-cover");
+    if (btn) btn.classList.add("is-run");
+    showWaitCard("更換封面中");
+    const ids = Array.from(selected);
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        const fd = new FormData();
+        fd.append("cover", file, file.name || "cover.jpg");
+        await postFile(
+          window.FamiGate.origin() + "/api/holding-cover?id=" + encodeURIComponent(ids[i]) + "&k=" + encodeURIComponent(key),
+          fd,
+          setWaitPct
+        );
+      }
+      setWaitPct(100);
+    } finally {
+      hideWaitCard();
+      if (btn) btn.classList.remove("is-run");
+      bookCoverInput.value = "";
+      clearSelect();
+      loadShelf();
+    }
+  });
+
+  const actClose = document.getElementById("actClose");
+  if (actClose) actClose.addEventListener("click", closeAct);
+  bindMaskClose("actMask", closeAct);
+  bindMaskClose("askMask", closeAsk);
+  const askNo = document.getElementById("askNo");
+  const askYes = document.getElementById("askYes");
+  const askOk = document.getElementById("askOk");
+  if (askNo) askNo.addEventListener("click", closeAsk);
+  async function finishAsk() {
+    const kind = askKind;
+    closeAsk();
+    if (kind === "reset") {
+      await window.FamiGate.api("/api/trading/reset", key, { method: "POST", timeout: 15000 });
+      openQueue();
+      loadShelf();
+    }
+  }
+  if (askOk) askOk.addEventListener("click", finishAsk);
+  if (askYes) askYes.addEventListener("click", finishAsk);
+  window.addEventListener("resize", layoutStage);
+  if (feed || goBtn) boot();
+})();
