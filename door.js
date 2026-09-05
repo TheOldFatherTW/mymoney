@@ -559,28 +559,32 @@
     withdrawTimer = window.setInterval(tick, 1000);
   }
 
+  function holdRow(item) {
+    catalog[item.id] = item;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "news-row";
+    const title = document.createElement("strong");
+    title.textContent = item.label || item.title || item.id;
+    const meta = document.createElement("span");
+    const bits = [];
+    if (item.label && item.title && item.title !== item.label) bits.push(item.title);
+    if (item.ep) bits.push(item.ep);
+    if (item.badge) bits.push(item.badge);
+    meta.textContent = bits.join(" · ");
+    if (item.badge && /^[+]/.test(item.badge)) meta.classList.add("is-up");
+    if (item.badge && /^[−-]/.test(item.badge)) meta.classList.add("is-down");
+    btn.appendChild(title);
+    btn.appendChild(meta);
+    btn.addEventListener("click", function () { openItem(item); });
+    return btn;
+  }
+
   function paintHolds(items) {
     if (!holdFeed) return;
     holdFeed.innerHTML = "";
     (items || []).forEach(function (item) {
-      catalog[item.id] = item;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "news-row";
-      const title = document.createElement("strong");
-      title.textContent = item.label || item.title || item.id;
-      const meta = document.createElement("span");
-      const bits = [];
-      if (item.label && item.title && item.title !== item.label) bits.push(item.title);
-      if (item.ep) bits.push(item.ep);
-      if (item.badge) bits.push(item.badge);
-      meta.textContent = bits.join(" · ");
-      if (item.badge && /^[+]/.test(item.badge)) meta.classList.add("is-up");
-      if (item.badge && /^[−-]/.test(item.badge)) meta.classList.add("is-down");
-      btn.appendChild(title);
-      btn.appendChild(meta);
-      btn.addEventListener("click", function () { openItem(item); });
-      holdFeed.appendChild(btn);
+      holdFeed.appendChild(holdRow(item));
     });
   }
 
@@ -693,11 +697,12 @@
     const x = await window.FamiGate.api("/api/shelf?tab=" + encodeURIComponent(hostTab), key, { timeout: 20000 });
     if (!x || !x.res || !x.res.ok || !x.j) return;
     catalog = {};
+    feed.className = "feed news-list";
     feed.innerHTML = "";
     (x.j.items || []).forEach(function (item) {
-      feed.appendChild(tileEl(item));
+      feed.appendChild(holdRow(item));
     });
-    paintPicks();
+    clearSelect();
     layoutStage();
   }
 

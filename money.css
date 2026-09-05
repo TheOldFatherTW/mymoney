@@ -6,6 +6,14 @@
 }
 .hall.is-content .feed:not(.is-holds) { display: none; }
 .hall:not(.is-content) .content-page { display: none !important; }
+.feed.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(720px, calc(100% - 32px));
+  margin: 8px auto 48px;
+  background: transparent;
+}
 .money-kicker {
   margin: 28px 0 8px;
   color: var(--mute);
