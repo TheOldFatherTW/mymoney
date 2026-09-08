@@ -1,16 +1,16 @@
-/* Product mark for MyMoney — 金標, not rose, not lissajous, not moon, not subway Y, not pal. */
+/* Product mark for MyMoney — official 金標: Schwab seal + M. */
 (function () {
   const SVG_NS = "http://www.w3.org/2000/svg";
 
-  function coinSvg() {
+  function markSvg() {
     const svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 88 88");
     svg.setAttribute("class", "money-mark-svg");
     svg.setAttribute("aria-hidden", "true");
     svg.innerHTML = [
-      '<circle cx="44" cy="44" r="36" fill="none" stroke="currentColor" stroke-width="3.2"/>',
-      '<circle cx="44" cy="44" r="28" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.45"/>',
-      '<path d="M44 24v40M36 32c8-6 20-2 16 8-3 8-16 8-16 16 0 8 12 10 20 4" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>',
+      '<circle cx="44" cy="44" r="34" fill="none" stroke="currentColor" stroke-width="4.4"/>',
+      '<circle cx="44" cy="44" r="26" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.45"/>',
+      '<path d="M26 63V29h7.2L44 46.5 54.8 29H62v34h-6.6V39.5L44 56.2 32.6 39.5V63H26z" fill="currentColor"/>',
     ].join("");
     return svg;
   }
@@ -19,7 +19,7 @@
     if (!root || root.getAttribute("data-mark") === "on") return;
     root.setAttribute("data-mark", "on");
     root.innerHTML = "";
-    root.appendChild(coinSvg());
+    root.appendChild(markSvg());
   }
 
   function mountBar(root) {

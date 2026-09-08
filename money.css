@@ -69,7 +69,7 @@
   letter-spacing: -0.02em;
 }
 .money-stats strong.is-up { color: #1a7f37; }
-.money-stats strong.is-down { color: #c13584; }
+.money-stats strong.is-down { color: #c62828; }
 .money-note {
   margin: 8px 0 0;
   color: var(--mute);
@@ -108,7 +108,7 @@ button.news-row:active { background: #f6f6f6; }
   font-variant-numeric: tabular-nums;
 }
 .news-row span.is-up { color: #1a7f37; }
-.news-row span.is-down { color: #c13584; }
+.news-row span.is-down { color: #c62828; }
 .news-empty {
   color: var(--mute);
   font-size: 14px;
