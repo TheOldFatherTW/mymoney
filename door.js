@@ -641,13 +641,61 @@
     withdrawTimer = window.setInterval(tick, 1000);
   }
 
+  function paintMarquee(host, text) {
+    if (!host) return;
+    const label = String(text || "");
+    host.setAttribute("data-marquee", label);
+    host.setAttribute("title", label);
+    armMarquee(host);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { armMarquee(host); });
+    });
+  }
+
+  function armMarquee(host) {
+    if (!host) return;
+    const label = host.getAttribute("data-marquee") || "";
+    host.classList.remove("is-run");
+    host.style.removeProperty("--marquee-s");
+    host.innerHTML = "";
+    const a = document.createElement("span");
+    a.textContent = label;
+    host.appendChild(a);
+    if (host.clientWidth > 0 && a.scrollWidth > host.clientWidth + 2) {
+      host.classList.add("is-run");
+      host.style.setProperty("--marquee-s", Math.max(8, Math.round((a.scrollWidth + 40) / 36)) + "s");
+      const b = document.createElement("span");
+      b.textContent = label;
+      b.setAttribute("aria-hidden", "true");
+      host.appendChild(b);
+    }
+  }
+
+  function refreshMarquees(root) {
+    (root || document).querySelectorAll("[data-marquee]").forEach(armMarquee);
+  }
+
+  function bindMarqueeResize() {
+    if (window.__famiMarqueeBound) return;
+    window.__famiMarqueeBound = true;
+    let t = 0;
+    function kick() {
+      window.clearTimeout(t);
+      t = window.setTimeout(function () { refreshMarquees(document); }, 80);
+    }
+    window.addEventListener("resize", kick);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", kick);
+  }
+
+  bindMarqueeResize();
+
   function holdRow(item) {
     catalog[item.id] = item;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "news-row";
     const title = document.createElement("strong");
-    title.textContent = item.label || item.title || item.id;
+    paintMarquee(title, item.label || item.title || item.id);
     const meta = document.createElement("span");
     const bits = [];
     if (item.label && item.title && item.title !== item.label) bits.push(item.title);
@@ -668,6 +716,7 @@
     (items || []).forEach(function (item) {
       holdFeed.appendChild(holdRow(item));
     });
+    refreshMarquees(holdFeed);
   }
 
   function paintNews(rows) {
@@ -686,7 +735,7 @@
       btn.type = "button";
       btn.className = "news-row";
       const title = document.createElement("strong");
-      title.textContent = row.title || "";
+      paintMarquee(title, row.title || "");
       const meta = document.createElement("span");
       meta.textContent = [row.publisher, newsWhen(row.at)].filter(Boolean).join(" · ");
       btn.appendChild(title);
@@ -697,6 +746,7 @@
       });
       host.appendChild(btn);
     });
+    refreshMarquees(host);
   }
 
   function applyLabels(labels) {
@@ -814,6 +864,7 @@
     (x.j.items || []).forEach(function (item) {
       feed.appendChild(holdRow(item));
     });
+    refreshMarquees(feed);
     clearSelect();
     layoutStage();
   }
