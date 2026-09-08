@@ -1279,7 +1279,7 @@ form.tag-picker-form {
   outline: 2px solid var(--pick-veil);
   outline-offset: 1px;
 }
-.tag-picker-form button[type="submit"]:not(.tag-submit) {
+.tag-picker-form button[type="submit"]:not(.tag-submit):not(.tag-apply) {
   flex: 0 0 auto;
   width: auto;
   min-width: 66px;
@@ -1391,7 +1391,14 @@ button.tag-chip {
   display: flex;
   gap: 8px;
 }
-.ask-actions button {
+.ask-actions:has(> .tag-apply:not([hidden])) {
+  flex-direction: column;
+}
+.ask-actions:has(> .tag-apply:not([hidden])) button:not(.tag-apply) {
+  flex: 0 0 44px;
+  width: 100%;
+}
+.ask-actions button:not(.tag-apply) {
   flex: 1;
   height: 44px;
   border: 0;
@@ -1853,7 +1860,10 @@ html.is-reading body {
   display: none !important;
 }
 .ask-actions .tag-apply {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
   margin: 0;
-  height: 44px;
+  height: 52px;
+  border-radius: 999px;
 }
