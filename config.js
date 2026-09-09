@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://geneva-oven-pointing-junction.trycloudflare.com";
+window.VAULT_ORIGIN = "https://bare-mothers-read-printer.trycloudflare.com";
