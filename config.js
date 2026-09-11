@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://downloads-developers-sept-lows.trycloudflare.com";
+window.VAULT_ORIGIN = "https://education-down-universal-donald.trycloudflare.com";
