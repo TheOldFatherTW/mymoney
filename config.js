@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://pas-professionals-township-largest.trycloudflare.com";
+window.VAULT_ORIGIN = "https://downloads-developers-sept-lows.trycloudflare.com";
