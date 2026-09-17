@@ -23,7 +23,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="./app.css?v=5"/>
 <link rel="stylesheet" href="./money.css?v=8"/>
-<script src="./config.js?v=1789574217"></script>
+<script src="./config.js?v=1789660800"></script>
 <script>
 (function () {
   var opened = "";
@@ -31,11 +31,13 @@
   window.MYMONEY_NEED_GATE = opened !== "1";
   document.documentElement.classList.add(window.MYMONEY_NEED_GATE ? "need-gate" : "gate-ok");
   var KEY_RE = /^[A-Za-z0-9_-]{8,128}$/;
+  var viewKey = (window.FAMIGATE_CONFIG && window.FAMIGATE_CONFIG.viewKeyStorage) || "mymoney.viewKey";
+  var cookieRe = new RegExp("(?:^|; )" + viewKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "=([^;]*)");
   var stored = "";
-  try { stored = localStorage.getItem("mymoney.viewKey") || ""; } catch (e) {}
+  try { stored = localStorage.getItem(viewKey) || ""; } catch (e) {}
   var cookie = "";
   try {
-    var m = document.cookie.match(/(?:^|; )mymoney\.viewKey=([^;]*)/);
+    var m = document.cookie.match(cookieRe);
     cookie = m ? decodeURIComponent(m[1]) : "";
   } catch (e) {}
   var q = new URLSearchParams(location.search).get("k") || "";
@@ -53,7 +55,7 @@
   window.MYMONEY_URL_KEY = fromUrl;
   window.MYMONEY_VIEW_KEY = token;
   if (token && !window.MYMONEY_NEED_GATE) {
-    try { localStorage.setItem("mymoney.viewKey", token); } catch (e) {}
+    try { localStorage.setItem(viewKey, token); } catch (e) {}
     if (typeof navigator.standalone === "boolean" && !navigator.standalone) {
       var pin = location.pathname + "?k=" + encodeURIComponent(token) + "#k=" + encodeURIComponent(token);
       if (location.pathname + location.search + location.hash !== pin) {
@@ -199,7 +201,7 @@
   <button type="button" class="invite-go" id="home-installed">我已加入</button>
 </div>
 <script src="./mark.js?v=2"></script>
-<script src="./gate.js?v=1"></script>
+<script src="./gate.js?v=2"></script>
 <script src="./hey.js?v=1"></script>
 <script src="./door.js?v=12"></script>
 </body>
