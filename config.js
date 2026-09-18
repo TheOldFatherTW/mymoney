@@ -1,1 +1,1 @@
-window.VAULT_ORIGIN = "https://tracked-virginia-follow-atom.trycloudflare.com";
+window.VAULT_ORIGIN = "https://treatments-automation-refine-dancing.trycloudflare.com";
